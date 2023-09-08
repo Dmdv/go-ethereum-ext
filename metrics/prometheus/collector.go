@@ -19,6 +19,7 @@ package prometheus
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -46,7 +47,39 @@ func newCollector() *collector {
 	}
 }
 
+// Add adds the metric i to the collector. This method returns an error if the
+// metric type is not supported/known.
+func (c *collector) Add(name string, i any) error {
+	switch m := i.(type) {
+	case metrics.Counter:
+		c.addCounter(name, m.Snapshot())
+	case metrics.CounterFloat64:
+		c.addCounterFloat64(name, m.Snapshot())
+	case metrics.Gauge:
+		c.addGauge(name, m.Snapshot())
+	case metrics.GaugeFloat64:
+		c.addGaugeFloat64(name, m.Snapshot())
+	case metrics.GaugeInfo:
+		c.addGaugeInfo(name, m.Snapshot())
+	case metrics.Histogram:
+		c.addHistogram(name, m.Snapshot())
+	case metrics.Meter:
+		c.addMeter(name, m.Snapshot())
+	case metrics.Timer:
+		c.addTimer(name, m.Snapshot())
+	case metrics.ResettingTimer:
+		c.addResettingTimer(name, m.Snapshot())
+	default:
+		return fmt.Errorf("unknown prometheus metric type %T", i)
+	}
+	return nil
+}
+
 func (c *collector) addCounter(name string, m metrics.Counter) {
+	c.writeGaugeCounter(name, m.Count())
+}
+
+func (c *collector) addCounterFloat64(name string, m metrics.CounterFloat64) {
 	c.writeGaugeCounter(name, m.Count())
 }
 
@@ -56,6 +89,10 @@ func (c *collector) addGauge(name string, m metrics.Gauge) {
 
 func (c *collector) addGaugeFloat64(name string, m metrics.GaugeFloat64) {
 	c.writeGaugeCounter(name, m.Value())
+}
+
+func (c *collector) addGaugeInfo(name string, m metrics.GaugeInfo) {
+	c.writeGaugeInfo(name, m.Value())
 }
 
 func (c *collector) addHistogram(name string, m metrics.Histogram) {
@@ -98,6 +135,19 @@ func (c *collector) addResettingTimer(name string, m metrics.ResettingTimer) {
 	c.buff.WriteRune('\n')
 }
 
+func (c *collector) writeGaugeInfo(name string, value metrics.GaugeInfoValue) {
+	name = mutateKey(name)
+	c.buff.WriteString(fmt.Sprintf(typeGaugeTpl, name))
+	c.buff.WriteString(name)
+	c.buff.WriteString(" ")
+	var kvs []string
+	for k, v := range value {
+		kvs = append(kvs, fmt.Sprintf("%v=%q", k, v))
+	}
+	sort.Strings(kvs)
+	c.buff.WriteString(fmt.Sprintf("{%v} 1\n\n", strings.Join(kvs, ", ")))
+}
+
 func (c *collector) writeGaugeCounter(name string, value interface{}) {
 	name = mutateKey(name)
 	c.buff.WriteString(fmt.Sprintf(typeGaugeTpl, name))
@@ -116,5 +166,5 @@ func (c *collector) writeSummaryPercentile(name, p string, value interface{}) {
 }
 
 func mutateKey(key string) string {
-	return strings.Replace(key, "/", "_", -1)
+	return strings.ReplaceAll(key, "/", "_")
 }

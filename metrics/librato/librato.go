@@ -107,11 +107,26 @@ func (rep *Reporter) BuildRequest(now time.Time, r metrics.Registry) (snapshot B
 				}
 				snapshot.Counters = append(snapshot.Counters, measurement)
 			}
+		case metrics.CounterFloat64:
+			if m.Count() > 0 {
+				measurement[Name] = fmt.Sprintf("%s.%s", name, "count")
+				measurement[Value] = m.Count()
+				measurement[Attributes] = map[string]interface{}{
+					DisplayUnitsLong:  Operations,
+					DisplayUnitsShort: OperationsShort,
+					DisplayMin:        "0",
+				}
+				snapshot.Counters = append(snapshot.Counters, measurement)
+			}
 		case metrics.Gauge:
 			measurement[Name] = name
 			measurement[Value] = float64(m.Value())
 			snapshot.Gauges = append(snapshot.Gauges, measurement)
 		case metrics.GaugeFloat64:
+			measurement[Name] = name
+			measurement[Value] = m.Value()
+			snapshot.Gauges = append(snapshot.Gauges, measurement)
+		case metrics.GaugeInfo:
 			measurement[Name] = name
 			measurement[Value] = m.Value()
 			snapshot.Gauges = append(snapshot.Gauges, measurement)
