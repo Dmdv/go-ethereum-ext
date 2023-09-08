@@ -96,6 +96,9 @@ type ContractTransactor interface {
 
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
+
+	// SendRawTransaction injects the transaction into the pending pool for execution.
+	SendRawTransaction(ctx context.Context, tx string) error
 }
 
 // ContractFilterer defines the methods needed to access log events using one-off
