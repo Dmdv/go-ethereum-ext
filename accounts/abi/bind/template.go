@@ -78,6 +78,71 @@ var tmplSource = map[Lang]string{
 	LangGo: tmplSourceGo,
 }
 
+// tmplSource is language to template mapping containing all the supported
+// programming languages the package can generate to.
+var tmplSourcePacker = map[Lang]string{
+	LangGo: tmplSourceGoPacker,
+}
+
+const tmplSourceGoPacker = `
+// Code generated - DO NOT EDIT.
+// This file is a generated binding and any manual changes will be lost.
+package {{.Package}}
+
+import (
+	meta "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"math/big"
+)
+
+var (
+	abi *meta.ABI
+	err error
+)
+
+{{$structs := .Structs}}
+
+{{range $contract := .Contracts}}
+	// {{.Type}}MetaData contains all meta data concerning the {{.Type}} contract.
+	var {{.Type}}MetaData = &bind.MetaData{
+		ABI: "{{.InputABI}}",
+		{{if $contract.FuncSigs -}}
+		Sigs: map[string]string{
+			{{range $strsig, $binsig := .FuncSigs}}"{{$binsig}}": "{{$strsig}}",
+			{{end}}
+		},
+		{{end -}}
+		{{if .InputBin -}}
+		Bin: "0x{{.InputBin}}",
+		{{end}}
+	}
+
+	// {{.Type}}ABI is the input ABI used to generate the binding from.
+	// Deprecated: Use {{.Type}}MetaData.ABI instead.
+	var {{.Type}}ABI = {{.Type}}MetaData.ABI
+
+	func init() {
+		abi, err = {{.Type}}MetaData.GetAbi()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	{{range .Transacts}}
+		// {{.Normalized.Name}} is a paid mutator transaction binding the contract method 0x{{printf "%x" .Original.ID}}.
+		//
+		// Solidity: {{.Original.String}}
+		func {{.Normalized.Name}}({{range $i, $_ := .Normalized.Inputs}}{{if ne $i 0}},{{end}} {{.Name}} {{bindtype .Type $structs}} {{end}}) (string, error) {
+          pack, err := abi.Pack("{{.Original.Name}}" {{range .Normalized.Inputs}}, {{.Name}} {{end}})
+		  return hexutil.Encode(pack), err
+		}
+	{{end}}
+
+{{end}}
+`
+
 // tmplSourceGo is the Go source template that the generated Go contract binding
 // is based on.
 const tmplSourceGo = `

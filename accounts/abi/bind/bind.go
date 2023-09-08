@@ -286,7 +286,9 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 		"capitalise":    capitalise,
 		"decapitalise":  decapitalise,
 	}
-	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSource[lang]))
+	t := template.New("").Funcs(funcs)
+	parse, err := t.Parse(tmplSource[lang])
+	tmpl := template.Must(parse, err)
 	if err := tmpl.Execute(buffer, data); err != nil {
 		return "", err
 	}
